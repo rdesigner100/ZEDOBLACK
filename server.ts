@@ -1,11 +1,74 @@
 import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
+import OpenAI from "openai";
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
+
+// xAI Chat Endpoint
+app.post("/api/chat/xai", async (req, res) => {
+  const { messages, systemInstruction, model } = req.body;
+  const apiKey = process.env.XAI_API_KEY;
+
+  if (!apiKey) {
+    return res.status(400).json({ error: "XAI_API_KEY não configurada. Por favor, adicione-a nas variáveis de ambiente." });
+  }
+
+  // Base instructions for formatting and behavior
+  const baseInstructions = `
+Siga estas diretrizes de formatação e comportamento:
+- Respostas sempre organizadas, limpas e bem formatadas usando Markdown.
+- Coerência total com a mensagem do usuário.
+- Se o usuário enviar saudações simples (ex: "oi", "olá") ou mensagens curtas, responda de forma simples, curta e direta.
+- Responda de forma extensa apenas quando for estritamente necessário ou solicitado pelo usuário.
+- Mantenha o tom solicitado nas instruções do sistema originais.
+`;
+
+  const finalSystemInstruction = systemInstruction 
+    ? `${systemInstruction}\n\n${baseInstructions}`
+    : baseInstructions;
+
+  try {
+    const xaiClient = new OpenAI({
+      apiKey: apiKey,
+      baseURL: "https://api.x.ai/v1",
+    });
+
+    const stream = await xaiClient.chat.completions.create({
+      model: "grok-4-1-fast-non-reasoning", // Fixed to fastest/cheapest
+      messages: [
+        { role: "system", content: finalSystemInstruction },
+        ...messages.map((m: any) => ({
+          role: m.role === "user" ? "user" : "assistant",
+          content: m.content,
+        })),
+      ],
+      stream: true,
+    });
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content || "";
+      if (content) {
+        res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      }
+    }
+
+    res.write("data: [DONE]\n\n");
+    res.end();
+  } catch (error: any) {
+    console.error("xAI Error:", error);
+    const status = error.status || 500;
+    const message = error.message || "Internal Server Error";
+    res.status(status).json({ error: message });
+  }
+});
 
 // AliveAI Proxy
 const ALIVE_AI_BASE_URL = 'https://api.aliveai.app';

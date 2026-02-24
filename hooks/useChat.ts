@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Message, Role, AppSettings, Attachment } from '../types';
 import { createConversation, addMessage, getMessages, deleteMessage } from '../services/db';
-import { streamChatResponse } from '../services/geminiService';
+import { streamXaiResponse } from '../services/xaiService';
 
 export function useChat(settings: AppSettings) {
   const [currentConvId, setCurrentConvId] = useState<string | null>(null);
@@ -55,7 +55,7 @@ export function useChat(settings: AppSettings) {
     setMessages(prev => [...prev, { id: botMsgId, role: Role.Model, content: '', timestamp: Date.now(), isStreaming: true }]);
 
     try {
-      const { text: finalContent, metadata: finalMetadata } = await streamChatResponse(
+      const { text: finalContent, metadata: finalMetadata } = await streamXaiResponse(
         updatedMessages,
         settings.model,
         (chunk, metadata) => {
@@ -116,7 +116,7 @@ export function useChat(settings: AppSettings) {
     setMessages(prev => [...prev, { id: botMsgId, role: Role.Model, content: '', timestamp: Date.now(), isStreaming: true }]);
 
     try {
-      const { text: finalContent, metadata: finalMetadata } = await streamChatResponse(
+      const { text: finalContent, metadata: finalMetadata } = await streamXaiResponse(
         newHistory,
         settings.model,
         (chunk, metadata) => {
