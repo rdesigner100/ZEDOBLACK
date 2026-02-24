@@ -1,0 +1,7 @@
+{
+  "name": "zdb ia sem censura",
+  "description": "",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
