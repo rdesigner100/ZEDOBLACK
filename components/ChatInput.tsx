@@ -1,15 +1,16 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Send, StopCircle, Mic, Plus, ArrowUp, Image as ImageIcon, FileText, X, Paperclip } from 'lucide-react';
+import { Send, StopCircle, Mic, Plus, ArrowUp, Image as ImageIcon, FileText, X, Paperclip, AudioLines } from 'lucide-react';
 import { Attachment } from '../types';
 
 interface ChatInputProps {
   onSend: (text: string, attachments: Attachment[]) => void;
   isLoading: boolean;
   onStop: () => void;
+  onStartVoiceMode: () => void;
   centered?: boolean;
 }
 
-export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, onStop, centered = false }) => {
+export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, onStop, onStartVoiceMode, centered = false }) => {
   const [text, setText] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
@@ -201,7 +202,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, onStop,
             onKeyDown={handleKeyDown}
             placeholder="Pergunte alguma coisa"
             rows={1}
-            className="flex-1 min-w-0 max-h-[200px] py-2 bg-transparent border-none focus:ring-0 resize-none text-gray-100 placeholder-[#b4b4b4] leading-6"
+            className="flex-1 min-w-0 max-h-[200px] py-2 bg-transparent border-none focus:ring-0 focus:outline-none resize-none text-gray-100 placeholder-[#b4b4b4] leading-6"
           />
           
           <div className="flex items-center gap-1 mb-1 flex-shrink-0">
@@ -214,28 +215,28 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, isLoading, onStop,
                 </button>
              ) : (
                  <>
-                   {!text.trim() && attachments.length === 0 && (
-                       /* Microphone Button */
+                   {!text.trim() && attachments.length === 0 ? (
+                       /* Voice Mode Button (Waves) */
                       <button 
-                        onClick={toggleListening}
-                        className={`p-2 transition-colors ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 hover:text-white'}`} 
-                        title="Usar microfone"
+                        onClick={onStartVoiceMode}
+                        className="p-2 bg-[#C41E3A] text-white rounded-full hover:opacity-90 transition-all duration-200 shadow-sm"
+                        title="Modo de Voz Realtime"
                       >
-                         <Mic size={22} fill={isListening ? "currentColor" : "none"} />
+                         <AudioLines size={20} />
                       </button>
+                   ) : (
+                       <button 
+                        onClick={handleSend}
+                        disabled={!text.trim() && attachments.length === 0}
+                        className={`p-2 rounded-full transition-all duration-200 ${
+                            text.trim() || attachments.length > 0
+                            ? 'bg-[#C41E3A] text-white hover:opacity-90' 
+                            : 'bg-[#424242] text-[#2f2f2f] cursor-default'
+                        }`}
+                       >
+                        <ArrowUp size={20} />
+                       </button>
                    )}
-                   
-                   <button 
-                    onClick={handleSend}
-                    disabled={!text.trim() && attachments.length === 0}
-                    className={`p-2 rounded-full transition-all duration-200 ${
-                        text.trim() || attachments.length > 0
-                        ? 'bg-white text-black hover:opacity-90' 
-                        : 'bg-[#424242] text-[#2f2f2f] cursor-default'
-                    }`}
-                   >
-                    <ArrowUp size={20} />
-                   </button>
                  </>
              )}
           </div>

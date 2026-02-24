@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import OpenAI from "openai";
+import { WebSocketServer, WebSocket } from 'ws';
 
 const app = express();
 const PORT = 3000;
@@ -215,8 +216,62 @@ async function startServer() {
     app.use(express.static('dist'));
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
+  });
+
+  // WebSocket Proxy for xAI Realtime API
+  const wss = new WebSocketServer({ noServer: true });
+
+  server.on('upgrade', (request, socket, head) => {
+    const url = new URL(request.url!, `http://${request.headers.host}`);
+    if (url.pathname === '/api/realtime') {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    }
+  });
+
+  wss.on('connection', (ws) => {
+    const apiKey = process.env.XAI_API_KEY;
+    if (!apiKey) {
+      ws.close(1008, "API Key not configured");
+      return;
+    }
+
+    const xaiWs = new WebSocket('wss://api.x.ai/v1/realtime', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      }
+    });
+
+    xaiWs.on('open', () => {
+      console.log('Connected to xAI Realtime API');
+    });
+
+    xaiWs.on('message', (data) => {
+      const msg = data.toString();
+      if (msg.includes('audio.delta')) {
+          // Don't log audio data to avoid spam
+      } else {
+          console.log('xAI -> Client:', msg.substring(0, 150) + '...');
+      }
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(msg);
+      }
+    });
+
+    ws.on('message', (data) => {
+      console.log('Client -> xAI:', data.toString().substring(0, 100) + '...');
+      if (xaiWs.readyState === WebSocket.OPEN) {
+        xaiWs.send(data.toString());
+      }
+    });
+
+    xaiWs.on('close', () => ws.close());
+    ws.on('close', () => xaiWs.close());
+    xaiWs.on('error', (err) => console.error('xAI WS Error:', err));
+    ws.on('error', (err) => console.error('Client WS Error:', err));
   });
 }
 

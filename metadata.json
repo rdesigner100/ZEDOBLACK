@@ -1,6 +1,6 @@
 {
   "name": "zdb ia sem censura",
-  "description": "",
+  "description": "Chat inteligente com modo de voz em tempo real e geração de imagens.",
   "requestFramePermissions": [
     "microphone"
   ]

@@ -6,6 +6,8 @@ import { SettingsModal } from './components/SettingsModal';
 import { Lightbox } from './components/Lightbox';
 import { SourceSidebar } from './components/SourceSidebar';
 import { AliveAiStudio } from './components/AliveAiStudio';
+import { VoiceModeOverlay } from './components/VoiceModeOverlay';
+import { RealtimeService } from './services/realtimeService';
 import { Menu } from 'lucide-react';
 import { Role, AppSettings, Attachment, GroundingMetadata } from './types';
 import { useChat } from './hooks/useChat';
@@ -35,6 +37,8 @@ export default function App() {
     return DEFAULT_SETTINGS;
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isVoiceModeOpen, setIsVoiceModeOpen] = useState(false);
+  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
   
   // Studio State
   const [isStudioOpen, setIsStudioOpen] = useState(false);
@@ -92,6 +96,17 @@ export default function App() {
 
   const handleSendFromStudio = (attachment: Attachment, text?: string) => {
       handleSend(text || "Imagem gerada com AliveAI", [attachment]);
+  };
+
+  const handleStartVoiceMode = async () => {
+    try {
+        const ctx = await RealtimeService.warmup();
+        setAudioContext(ctx);
+        setIsVoiceModeOpen(true);
+    } catch (err) {
+        console.error('Failed to warmup audio:', err);
+        setIsVoiceModeOpen(true); // Still try to open
+    }
   };
 
   // Logic to determine if we are in "Empty State" (Centered Input)
@@ -154,11 +169,12 @@ export default function App() {
                />
             </div>
             <div className="w-full">
-               <h2 className="text-2xl font-medium text-white text-center mb-8">Como posso ajudar?</h2>
+               <h2 className="text-2xl font-medium text-white text-center mb-8">ZDB 1.0 - Como posso ajudar?</h2>
                <ChatInput 
                 onSend={handleSend} 
                 isLoading={isLoading} 
                 onStop={() => {}} // Stop not implemented in hook yet, but optional
+                onStartVoiceMode={handleStartVoiceMode}
                 centered={true}
               />
             </div>
@@ -187,6 +203,7 @@ export default function App() {
                   onSend={handleSend} 
                   isLoading={isLoading} 
                   onStop={() => {}} 
+                  onStartVoiceMode={handleStartVoiceMode}
                 />
             </div>
           </>
@@ -210,6 +227,12 @@ export default function App() {
         isOpen={sourceSidebarOpen}
         metadata={activeMessageMetadata}
         onClose={() => setSourceSidebarOpen(false)}
+      />
+
+      <VoiceModeOverlay 
+        isOpen={isVoiceModeOpen}
+        onClose={() => setIsVoiceModeOpen(false)}
+        audioContext={audioContext}
       />
     </div>
   );
