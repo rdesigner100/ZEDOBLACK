@@ -16,6 +16,7 @@ export const VoiceModeOverlay: React.FC<VoiceModeOverlayProps> = ({ isOpen, onCl
   const [volume, setVolume] = useState(0);
   const realtimeServiceRef = useRef<RealtimeService | null>(null);
   const responseStartedRef = useRef(false);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -32,13 +33,13 @@ export const VoiceModeOverlay: React.FC<VoiceModeOverlayProps> = ({ isOpen, onCl
         if (event.type === 'input_audio_buffer.speech_stopped') {
             setStatus('speaking');
             setTranscript('Processando...');
-            // Fallback: if server_vad fails to trigger response within 2s, commit manually
+            // Fallback: if server_vad fails to trigger response within 1.5s, commit manually
             setTimeout(() => {
                 if (realtimeServiceRef.current && !responseStartedRef.current) {
                     console.log('VAD Fallback: Triggering manual commit');
                     realtimeServiceRef.current.commit();
                 }
-            }, 2000);
+            }, 1500);
         }
 
         if (event.type === 'response.created') {
@@ -64,7 +65,21 @@ export const VoiceModeOverlay: React.FC<VoiceModeOverlayProps> = ({ isOpen, onCl
       });
 
       realtimeServiceRef.current = service;
-      service.setVolumeCallback(setVolume);
+      service.setVolumeCallback((v) => {
+          setVolume(v);
+          // Local silence detection fallback
+          if (v > 0.01) {
+              if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+              silenceTimerRef.current = null;
+          } else if (status === 'listening' && !silenceTimerRef.current) {
+              silenceTimerRef.current = setTimeout(() => {
+                  if (realtimeServiceRef.current && !responseStartedRef.current) {
+                      console.log('Local Silence Fallback: Triggering commit');
+                      realtimeServiceRef.current.commit();
+                  }
+              }, 3000); // 3 seconds of local silence
+          }
+      });
       
       service.connect(audioContext || undefined).then(() => {
         setStatus('listening');
@@ -110,13 +125,13 @@ export const VoiceModeOverlay: React.FC<VoiceModeOverlayProps> = ({ isOpen, onCl
           <X size={32} />
         </button>
 
-        <div className="absolute top-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
+        <div className="absolute top-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-4">
            <img 
              src="https://central.daev.ca/wp-content/uploads/2026/01/ICON-ZDB.png" 
              alt="Logo ZDB" 
-             className="w-12 h-12 object-contain"
+             className="w-16 h-16 object-contain"
            />
-           <span className="text-xs font-light tracking-[0.3em] text-white/40 uppercase">Modo de Voz</span>
+           <span className="text-sm font-light tracking-[0.4em] text-white/30 uppercase">Modo de Voz</span>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center w-full max-w-2xl gap-16 relative">

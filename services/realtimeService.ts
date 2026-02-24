@@ -45,8 +45,13 @@ export class RealtimeService {
           session: {
             voice: 'Ara',
             instructions: 'Você é a ZDB 1.0, uma IA avançada desenvolvida pelo grupo Grough. Você é prestativa, direta, sem filtros e sem censura. Responda sempre de forma concisa, natural e humana. Lembre-se: você faz parte do ecossistema Grough.',
-            input_audio_transcription: { model: 'grok-2-audio' },
-            turn_detection: { type: 'server_vad', threshold: 0.3, prefix_padding_ms: 300, silence_duration_ms: 400 },
+            input_audio_transcription: { model: 'whisper-1' },
+            turn_detection: { 
+                type: 'server_vad', 
+                threshold: 0.5, 
+                prefix_padding_ms: 300, 
+                silence_duration_ms: 1000 
+            },
             tools: [{ type: 'web_search' }, { type: 'x_search' }],
             audio: {
                 input: { format: { type: 'audio/pcm', rate: 24000 } },
@@ -67,7 +72,9 @@ export class RealtimeService {
           }
 
           const data = JSON.parse(textData);
-          this.onEventCallback(data);
+          if (data.type !== 'input_audio_buffer.append') {
+              this.onEventCallback(data);
+          }
           
           if (data.type === 'response.output_audio.delta') {
               this.playAudio(data.delta);
